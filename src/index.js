@@ -14,6 +14,8 @@ const SOCKET = 2;
 export default class nexusdk {
   constructor({ id, name } = {}) {
     this.errors = [];
+    this.onInternalMessage = this.onInternalMessage.bind(this);
+    this.onReceiveMessage = this.onReceiveMessage.bind(this);
     if (typeof global.process !== 'undefined') {
       this.communicationType = IPC;
       this.process = global.process;
