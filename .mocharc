@@ -1,0 +1,5 @@
+--colors
+--full-trace
+--require ./mocha_babel_hook.js
+--recursive
+./src/*.test.js
