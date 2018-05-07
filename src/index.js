@@ -11,11 +11,12 @@ const env = {};
 const IPC = 1;
 const SOCKET = 2;
 
-export default class nexusdk {
+export class nexusdk {
   constructor({ id, name } = {}) {
     this.errors = [];
     this.onInternalMessage = this.onInternalMessage.bind(this);
     this.onReceiveMessage = this.onReceiveMessage.bind(this);
+    this.sendMessage = this.sendMessage.bind(this);
     if (typeof global.process !== 'undefined') {
       this.communicationType = IPC;
       this.process = global.process;
@@ -29,6 +30,8 @@ export default class nexusdk {
     const { name, data } = message;
     if (name === 'meta') {
       this.meta = data;
+    } else if (name === 'set_hook') {
+      this.hook = data;
     }
   }
 
@@ -54,3 +57,5 @@ export default class nexusdk {
     this.callbacks[messageName] = callback;
   }
 };
+
+export default new nexusdk();
