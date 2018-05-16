@@ -30,10 +30,14 @@ export class nexusdk {
     }
   }
 
-  sendMessage(message) {
+  sendData(message) {
     if (this.communicationType === IPC) {
       this.process.send({ meta: this.meta, hook: this.hook, time: new Date().toISOString(), message });
     }
+  }
+
+  sendMessage(type, data) {
+    return this.sendData({ type, data });
   }
 
   onReceiveMessage(message) {
@@ -62,7 +66,7 @@ export function wrapAction(actionFunction, configuration) {
   }
   sdk.on('start', (properties) => {
     try {
-      const result = actionFunction(properties, msg => sdk.sendMessage(msg));
+      const result = actionFunction(properties, (type, msg) => sdk.sendMessage(type, msg));
       if (result instanceof Promise) {
         result.then(result => sdk.sendMessage('result', result));
       } else {
@@ -87,7 +91,7 @@ export function wrapAction(actionFunction, configuration) {
 export function wrapHook(hookFunction, configuration) {
   sdk.on('start', (properties) => {
     try {
-      const result = hookFunction(properties, msg => sdk.sendMessage(msg));
+      const result = hookFunction(properties, (type, msg) => sdk.sendMessage(type, msg));
     } catch (err) {
       sdk.sendMessage('error', err);
     }
