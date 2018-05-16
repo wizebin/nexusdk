@@ -56,6 +56,10 @@ export class nexusdk {
 const sdk = new nexusdk();
 
 export function wrapAction(actionFunction, configuration) {
+  function exit(code) {
+    sdk.sendMessage('exit', code);
+    process.exit(code);
+  }
   sdk.on('start', (properties) => {
     try {
       const result = actionFunction(properties, msg => sdk.sendMessage(msg));
@@ -63,14 +67,20 @@ export function wrapAction(actionFunction, configuration) {
         result.then(result => sdk.sendMessage('result', result));
       } else {
         sdk.sendMessage('result', result);
+        exit(0);
       }
     } catch (err) {
       sdk.sendMessage('error', err);
+      exit(1);
     }
   });
 
   sdk.on('configuration', () => {
     sdk.sendMessage('configuration', configuration);
+  });
+
+  sdk.on('exit', () => {
+    exit(0);
   });
 }
 
