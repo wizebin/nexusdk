@@ -2,11 +2,6 @@ import * as object from './objectUtility';
 export { object };
 
 const env = {};
-// if (typeof process !== 'undefined' && typeof process.env !== 'undefined') {
-//   env.HOST = process.env.HOST;
-//   env.PORT = process.env.PORT;
-//   env.HOOK_ID = process.env.HOOK_ID;
-// }
 
 const IPC = 1;
 const SOCKET = 2;
@@ -58,4 +53,39 @@ export class nexusdk {
   }
 };
 
-export default new nexusdk();
+const sdk = new nexusdk();
+
+export function wrapAction(actionFunction, configuration) {
+  sdk.on('start', (properties) => {
+    try {
+      const result = actionFunction(properties, msg => sdk.sendMessage(msg));
+      if (result instanceof Promise) {
+        result.then(result => sdk.sendMessage('result', result));
+      } else {
+        sdk.sendMessage('result', result);
+      }
+    } catch (err) {
+      sdk.sendMessage('error', err);
+    }
+  });
+
+  sdk.on('configuration', () => {
+    sdk.sendMessage('configuration', configuration);
+  });
+}
+
+export function wrapHook(hookFunction, configuration) {
+  sdk.on('start', (properties) => {
+    try {
+      const result = hookFunction(properties, msg => sdk.sendMessage(msg));
+    } catch (err) {
+      sdk.sendMessage('error', err);
+    }
+  });
+
+  sdk.on('configuration', () => {
+    sdk.sendMessage('configuration', configuration);
+  });
+}
+
+export default sdk;
