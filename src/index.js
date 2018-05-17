@@ -59,6 +59,16 @@ export class nexusdk {
 
 const sdk = new nexusdk();
 
+function getPlainError(err) {
+  let result = {};
+  const keys = Object.getOwnPropertyNames(err);
+  for (let keydex = 0; keydex < keys.length; keydex += 1) {
+    const key = keys[keydex];
+    result[key] = err[key];
+  }
+  return result;
+}
+
 export function wrapAction(actionFunction, configuration) {
   function exit(code) {
     sdk.sendMessage('exit', code);
@@ -77,7 +87,7 @@ export function wrapAction(actionFunction, configuration) {
         exit(0);
       }
     } catch (err) {
-      sdk.sendMessage('error', Object.getOwnPropertyNames(err));
+      sdk.sendMessage('error', getPlainError(err));
       exit(1);
     }
   });
@@ -96,7 +106,7 @@ export function wrapHook(hookFunction, configuration) {
     try {
       const result = hookFunction(properties, (type, msg) => sdk.sendMessage(type, msg));
     } catch (err) {
-      sdk.sendMessage('error', Object.getOwnPropertyNames(err));
+      sdk.sendMessage('error', getPlainError(err));
     }
   });
 
