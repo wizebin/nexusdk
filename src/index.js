@@ -77,7 +77,7 @@ export function wrapAction(actionFunction, configuration) {
         exit(0);
       }
     } catch (err) {
-      sdk.sendMessage('error', err);
+      sdk.sendMessage('error', Object.getOwnPropertyNames(err));
       exit(1);
     }
   });
@@ -96,7 +96,7 @@ export function wrapHook(hookFunction, configuration) {
     try {
       const result = hookFunction(properties, (type, msg) => sdk.sendMessage(type, msg));
     } catch (err) {
-      sdk.sendMessage('error', err);
+      sdk.sendMessage('error', Object.getOwnPropertyNames(err));
     }
   });
 
