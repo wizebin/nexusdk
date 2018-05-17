@@ -68,7 +68,10 @@ export function wrapAction(actionFunction, configuration) {
     try {
       const result = actionFunction(properties, (type, msg) => sdk.sendMessage(type, msg));
       if (result instanceof Promise) {
-        result.then(result => sdk.sendMessage('result', result));
+        result.then(result => {
+          sdk.sendMessage('result', result)
+          exit(0);
+        });
       } else {
         sdk.sendMessage('result', result);
         exit(0);
