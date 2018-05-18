@@ -6,7 +6,7 @@ const env = {};
 const IPC = 1;
 const SOCKET = 2;
 
-export class nexusdk {
+export class Nexusdk {
   constructor({ id, name } = {}) {
     this.errors = [];
     this.onInternalMessage = this.onInternalMessage.bind(this);
@@ -14,8 +14,7 @@ export class nexusdk {
     this.sendMessage = this.sendMessage.bind(this);
     if (typeof global.process !== 'undefined') {
       this.communicationType = IPC;
-      this.process = global.process;
-      this.process.on('message', this.onReceiveMessage);
+      global.process.on('message', this.onReceiveMessage);
     }
     this.hook = { id, name };
     this.callbacks = { internal: this.onInternalMessage };
@@ -32,12 +31,12 @@ export class nexusdk {
 
   sendData(message) {
     if (this.communicationType === IPC) {
-      this.process.send({ meta: this.meta, hook: this.hook, time: new Date().toISOString(), message });
+      global.process.send({ meta: this.meta, hook: this.hook, time: new Date().toISOString(), message });
     }
   }
 
-  sendMessage(type, data) {
-    return this.sendData({ type, data });
+  sendMessage(type, data, caller) {
+    return this.sendData({ type, data, caller });
   }
 
   onReceiveMessage(message) {
@@ -57,8 +56,6 @@ export class nexusdk {
   }
 };
 
-const sdk = new nexusdk();
-
 function getPlainError(err) {
   let result = {};
   const keys = Object.getOwnPropertyNames(err);
@@ -69,31 +66,32 @@ function getPlainError(err) {
   return result;
 }
 
-export function wrapAction(actionFunction, configuration) {
+export function wrapSDKFunction(sdk, func, exit, caller) {
+  return (...args) => {
+    try {
+      const result = func(...args);
+      if (result instanceof Promise) {
+        result.then(result => {
+          sdk.sendMessage('result', result, caller)
+        });
+      } else {
+        sdk.sendMessage('result', result, caller);
+      }
+    } catch (err) {
+      sdk.sendMessage('error', getPlainError(err), caller);
+    }
+  }
+}
+
+export function wrapSDKAction(sdk, actionFunction, requiredConfiguration) {
   function exit(code) {
     sdk.sendMessage('exit', code);
     process.exit(code);
   }
-  sdk.on('start', (properties) => {
-    try {
-      const result = actionFunction(properties, (type, msg) => sdk.sendMessage(type, msg));
-      if (result instanceof Promise) {
-        result.then(result => {
-          sdk.sendMessage('result', result)
-          exit(0);
-        });
-      } else {
-        sdk.sendMessage('result', result);
-        exit(0);
-      }
-    } catch (err) {
-      sdk.sendMessage('error', getPlainError(err));
-      exit(1);
-    }
-  });
+  sdk.on('start', wrapSDKFunction(sdk, actionFunction, exit, 'start'));
 
   sdk.on('configuration', () => {
-    sdk.sendMessage('configuration', configuration);
+    sdk.sendMessage('configuration', requiredConfiguration);
   });
 
   sdk.on('exit', () => {
@@ -101,18 +99,44 @@ export function wrapAction(actionFunction, configuration) {
   });
 }
 
-export function wrapHook(hookFunction, configuration) {
+export function wrapSDKHook(sdk, hookFunction, requiredConfiguration, preload, cleanup) {
+  function exit(code) {
+    sdk.sendMessage('exit', code);
+    process.exit(code);
+  }
+
+  const messageCallbacks = {
+    message: (type, data) => sdk.sendMessage(type, data, 'start'),
+    trigger: (data) => sdk.sendMessage('trigger', data, 'start'),
+    stop: () => sdk.sendMessage('stop', null, 'start'),
+  };
+
   sdk.on('start', (properties) => {
-    try {
-      const result = hookFunction(properties, (type, msg) => sdk.sendMessage(type, msg));
-    } catch (err) {
-      sdk.sendMessage('error', getPlainError(err));
-    }
+    hookFunction(properties, messageCallbacks);
   });
 
+  preload && sdk.on('preload', wrapSDKFunction(sdk, preload, exit, 'preload'));
+  cleanup && sdk.on('cleanup', wrapSDKFunction(sdk, cleanup, exit, 'cleanup'));
+
   sdk.on('configuration', () => {
-    sdk.sendMessage('configuration', configuration);
+    sdk.sendMessage('configuration', requiredConfiguration);
+  });
+
+  sdk.on('exit', () => {
+    exit(0);
   });
 }
 
-export default sdk;
+const globalSDK = new Nexusdk();
+
+export function wrapFunction(...args) {
+  return wrapSDKFunction(globalSDK, ...args);
+}
+export function wrapAction(...args) {
+  return wrapSDKAction(globalSDK, ...args);
+}
+export function wrapHook(...args) {
+  return wrapSDKHook(globalSDK, ...args);
+}
+
+export default globalSDK;

@@ -1,43 +1,60 @@
-// import { expect } from 'chai';
-// import { getNextNonceCount, setNextNonceCount, quoteIfRelevant } from './index';
+import { expect } from 'chai';
+import { Nexusdk, wrapSDKAction, wrapSDKHook } from './index';
 
-// describe('digest fetch', () => {
-//   describe('nonce', () => {
-//     it('returns nonces as expected', () => {
-//       let prev = getNextNonceCount();
-//       for(let a = 0; a < 11; a++) {
-//         const temp = getNextNonceCount();
-//         expect(temp).have.lengthOf(8);
-//         expect(parseInt(temp)).equal(parseInt(prev) + 1);
-//         prev = temp;
-//       }
-//     });
+let sendData = null;
+let exitData = null;
+let originalSend = process.send;
+let originalExit = process.exit;
 
-//     it('rolls over at 9 digits', () => {
-//       setNextNonceCount(99999998);
-//       expect(getNextNonceCount()).equal('99999999');
-//       expect(getNextNonceCount()).equal('00000000');
-//     });
-//   });
+describe('Nexusdk', () => {
+  before(() => {
+    process.send = data => {sendData = data;}
+  });
+  after(() => {
+    process.send = originalSend;
+  });
 
-//   describe('quoteIfRelevant', () => {
-//     it('quotes everything but the two nonce values', () => {
-//       const testObject = {
-//         nc: 'hello',
-//         hello: 'goodbye',
-//         '1nc': 'bazonga',
-//         nc1: 'bazinga',
-//         qop: 'unquoted',
-//         qop1: 'isquoted',
-//         '1qop': 'alsoquoted',
-//       };
-//       expect(quoteIfRelevant(testObject, 'hello')).equal('"goodbye"');
-//       expect(quoteIfRelevant(testObject, 'nc')).equal('hello');
-//       expect(quoteIfRelevant(testObject, 'nc1')).equal('"bazinga"');
-//       expect(quoteIfRelevant(testObject, '1nc')).equal('"bazonga"');
-//       expect(quoteIfRelevant(testObject, 'qop')).equal('unquoted');
-//       expect(quoteIfRelevant(testObject, 'qop1')).equal('"isquoted"');
-//       expect(quoteIfRelevant(testObject, '1qop')).equal('"alsoquoted"');
-//     })
-//   })
-// });
+  describe('wrapAction', () => {
+    it('sends messages correctly', () => {
+      const sdk = new Nexusdk();
+      let expectedData = null;
+      wrapSDKAction(sdk, (data) => { expectedData = data; return true; });
+      sdk.onReceiveMessage({ type: 'start', data: 'bloop' });
+      expect(expectedData).to.equal('bloop');
+    });
+
+    it('calls process.exit when it receives an exit message correctly', () => {
+      const sdk = new Nexusdk();
+      let expectedData = null;
+      let exitData = null;
+      wrapSDKAction(sdk, (data) => { expectedData = data; return true; });
+      process.exit = () => {exitData = true;}
+      sdk.onReceiveMessage({ type: 'exit' });
+      process.exit = originalExit;
+      expect(expectedData).to.equal(null);
+      expect(exitData).to.equal(true);
+    });
+  });
+
+  describe('wrapHook', () => {
+    it('sends messages correctly', () => {
+      const sdk = new Nexusdk();
+      let expectedData = null;
+      wrapSDKHook(sdk, (properties, messages) => { messages.trigger(properties) });
+      sendData = null;
+      sdk.onReceiveMessage({ type: 'start', data: { name: 'bazinga' } });
+      expect(sendData).to.have.deep.property('message', { type: 'trigger', caller: 'start', data: { name: 'bazinga' } });
+
+      sendData = null;
+      sdk.onReceiveMessage({ type: 'unhandled_message', data: { name: 'bazinga' } });
+      expect(sendData).to.equal(null);
+
+      let exitData = null;
+      process.exit = () => {exitData = true;}
+      sdk.onReceiveMessage({ type: 'exit' });
+      process.exit = originalExit;
+      expect(expectedData).to.equal(null);
+      expect(exitData).to.equal(true);
+    });
+  });
+});
