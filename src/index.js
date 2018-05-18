@@ -109,6 +109,7 @@ export function wrapSDKHook(sdk, hookFunction, requiredConfiguration, preload, c
     message: (type, data) => sdk.sendMessage(type, data, 'start'),
     trigger: (data) => sdk.sendMessage('trigger', data, 'start'),
     stop: () => sdk.sendMessage('stop', null, 'start'),
+    config: () => sdk.sendMessage('config', null, 'start'),
   };
 
   sdk.on('start', (properties) => {

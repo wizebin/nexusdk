@@ -1,17 +1,41 @@
 ## Description
 
-This package is used to interact with Nexuscript from a hook.
+This package is used to interact with Nexuscript as an action or hook.
 
-## Usage
+## Example Hook
+*This hook listens for file changes at path and tells nexuscript when any changes occur*
+https://github.com/wizebin/nexuscript-file-hook
 
-    import nexusdk from 'wizebin/nexusdk';
+        import { wrapHook } from 'nexusdk';
+        import * as fs from 'fs';
+        import path from 'path';
 
-    nexusdk.on('start', () => {
-        // start your hook here
-    })
+        export default wrapHook((properties, messages) => {
+            const { trigger } = messages;
+            const { path: location, recursive } = properties;
 
-    nexusdk.on('stop', () => {
-        // stop your hook here
-    })
+            const watcher = fs.watch(location, { recursive }, (action, filename) => {
+                trigger({ action, filename: path.join(location, filename), relative_filename: filename, time: new Date().toISOString() });
+            });
+        });
 
-    nexusdk.sendMessage(messageData); // Tell nexuscript your hook has been triggered
+## Example Action
+*This action sends a system notification*
+https://github.com/wizebin/nexuscript-notification-action
+
+        import { wrapAction } from 'nexusdk';
+        import notifier from 'node-notifier';
+
+        const boundNotify = notifier.notify.bind(notifier);
+
+        wrapAction((properties) => {
+            const { title, message, timeout } = properties;
+
+            const result = boundNotify({
+                title,
+                message: message ? message : ' ',
+                timeout: timeout ? timeout : undefined,
+            });
+
+            return !!result;
+        });
