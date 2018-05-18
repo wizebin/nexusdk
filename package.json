@@ -1,6 +1,6 @@
 {
   "name": "nexusdk",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "Nexuscript SDK for hooks and actions",
   "main": "./dist/src/index.js",
   "scripts": {
