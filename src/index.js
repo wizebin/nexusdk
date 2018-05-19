@@ -113,7 +113,20 @@ export function wrapSDKHook(sdk, hookFunction, requiredConfiguration, preload, c
   };
 
   sdk.on('start', (properties) => {
-    hookFunction(properties, messageCallbacks);
+    let results = null;
+    try {
+      results = hookFunction(properties, messageCallbacks);
+      if (results instanceof Promise) {
+        results.catch(err => {
+          sdk.sendMessage('error', getPlainError(err));
+          exit(1);
+        });
+      }
+    } catch(err) {
+      sdk.sendMessage('error', getPlainError(err));
+      exit(1);
+    }
+
   });
 
   preload && sdk.on('preload', wrapSDKFunction(sdk, preload, exit, 'preload'));
