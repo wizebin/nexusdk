@@ -73,6 +73,8 @@ export function wrapSDKFunction(sdk, func, exit, caller) {
       if (result instanceof Promise) {
         result.then(result => {
           sdk.sendMessage('result', result, caller)
+        }).catch(err => {
+          sdk.sendMessage('error', getPlainError(err), caller);
         });
       } else {
         sdk.sendMessage('result', result, caller);

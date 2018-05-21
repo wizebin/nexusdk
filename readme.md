@@ -39,3 +39,23 @@ https://github.com/wizebin/nexuscript-notification-action
 
             return !!result;
         });
+
+
+## Example Package.json nexuscript configuration
+
+        "nexuscript": {
+            "author": "nexuscript",
+            "price": "free",
+            "type": "action",
+            "configuration": {
+                "account_sid": "string",
+                "auth_token": "string",
+                "from": "string",
+                "to": "string",
+                "body": "string"
+            },
+            "category": "phone",
+            "build_command": "npm run build",
+            "dist_folder": "dist",
+            "dist_file": "dist/src/main.js"
+        }
