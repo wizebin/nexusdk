@@ -94,7 +94,7 @@ export function wrapSDKAction(sdk, actionFunction, options = { requiredConfigura
     sdk.sendMessage('exit', code);
     process.exit(code);
   }
-  sdk.on('start', wrapSDKFunction(sdk, actionFunction, exitOnComplete ? exit : null, 'start'));
+  sdk.on('start', wrapSDKFunction(sdk, actionFunction, options.exitOnComplete ? exit : null, 'start'));
 
   sdk.on('configuration', () => {
     sdk.sendMessage('configuration', requiredConfiguration);
