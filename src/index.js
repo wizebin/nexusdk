@@ -73,28 +73,28 @@ export function wrapSDKFunction(sdk, func, onFinish, caller) {
       if (result instanceof Promise) {
         result.then(result => {
           sdk.sendMessage('result', result, caller);
-          onFinish && onFinish();
+          onFinish && onFinish(0);
         }).catch(err => {
           sdk.sendMessage('error', getPlainError(err), caller);
-          onFinish && onFinish();
+          onFinish && onFinish(1);
         });
       } else {
         sdk.sendMessage('result', result, caller);
-        onFinish && onFinish();
+        onFinish && onFinish(0);
       }
     } catch (err) {
       sdk.sendMessage('error', getPlainError(err), caller);
-      onFinish && onFinish();
+      onFinish && onFinish(1);
     }
   }
 }
 
-export function wrapSDKAction(sdk, actionFunction, requiredConfiguration) {
+export function wrapSDKAction(sdk, actionFunction, options = { requiredConfiguration: {}, exitOnComplete: false }) {
   function exit(code) {
     sdk.sendMessage('exit', code);
     process.exit(code);
   }
-  sdk.on('start', wrapSDKFunction(sdk, actionFunction, exit, 'start'));
+  sdk.on('start', wrapSDKFunction(sdk, actionFunction, exitOnComplete ? exit : null, 'start'));
 
   sdk.on('configuration', () => {
     sdk.sendMessage('configuration', requiredConfiguration);
