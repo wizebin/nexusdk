@@ -66,21 +66,25 @@ function getPlainError(err) {
   return result;
 }
 
-export function wrapSDKFunction(sdk, func, exit, caller) {
+export function wrapSDKFunction(sdk, func, onFinish, caller) {
   return (...args) => {
     try {
       const result = func(...args);
       if (result instanceof Promise) {
         result.then(result => {
-          sdk.sendMessage('result', result, caller)
+          sdk.sendMessage('result', result, caller);
+          onFinish && onFinish();
         }).catch(err => {
           sdk.sendMessage('error', getPlainError(err), caller);
+          onFinish && onFinish();
         });
       } else {
         sdk.sendMessage('result', result, caller);
+        onFinish && onFinish();
       }
     } catch (err) {
       sdk.sendMessage('error', getPlainError(err), caller);
+      onFinish && onFinish();
     }
   }
 }
@@ -128,11 +132,10 @@ export function wrapSDKHook(sdk, hookFunction, requiredConfiguration, preload, c
       sdk.sendMessage('error', getPlainError(err));
       exit(1);
     }
-
   });
 
-  preload && sdk.on('preload', wrapSDKFunction(sdk, preload, exit, 'preload'));
-  cleanup && sdk.on('cleanup', wrapSDKFunction(sdk, cleanup, exit, 'cleanup'));
+  preload && sdk.on('preload', wrapSDKFunction(sdk, preload, null, 'preload'));
+  cleanup && sdk.on('cleanup', wrapSDKFunction(sdk, cleanup, null, 'cleanup'));
 
   sdk.on('configuration', () => {
     sdk.sendMessage('configuration', requiredConfiguration);
