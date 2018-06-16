@@ -29,14 +29,14 @@ export class Nexusdk {
     }
   }
 
-  sendData(message) {
+  sendData(message, id) {
     if (this.communicationType === IPC) {
-      global.process.send({ meta: this.meta, hook: this.hook, time: new Date().toISOString(), message });
+      global.process.send({ meta: this.meta, time: new Date().toISOString(), message, execution: id });
     }
   }
 
-  sendMessage(type, data, caller) {
-    return this.sendData({ type, data, caller });
+  sendMessage(type, data, caller, executionId) {
+    return this.sendData({ type, data, caller }, executionId);
   }
 
   onReceiveMessage(message) {
@@ -67,23 +67,25 @@ function getPlainError(err) {
 }
 
 export function wrapSDKFunction(sdk, func, onFinish, caller) {
-  return (...args) => {
+  return (properties) => {
     try {
-      const result = func(...args);
+      const { params, data, accounts, id, path, subaction } = properties;
+
+      const result = params ? func(...params) : func(properties);
       if (result instanceof Promise) {
         result.then(result => {
-          sdk.sendMessage('result', result, caller);
+          sdk.sendMessage('result', result, caller, id);
           onFinish && onFinish(0);
         }).catch(err => {
-          sdk.sendMessage('error', getPlainError(err), caller);
+          sdk.sendMessage('error', getPlainError(err), caller, id);
           onFinish && onFinish(1);
         });
       } else {
-        sdk.sendMessage('result', result, caller);
+        sdk.sendMessage('result', result, caller, id);
         onFinish && onFinish(0);
       }
     } catch (err) {
-      sdk.sendMessage('error', getPlainError(err), caller);
+      sdk.sendMessage('error', getPlainError(err), caller, id);
       onFinish && onFinish(1);
     }
   }
@@ -111,15 +113,18 @@ export function wrapSDKHook(sdk, hookFunction, requiredConfiguration, preload, c
     process.exit(code);
   }
 
-  const messageCallbacks = {
-    message: (type, data) => sdk.sendMessage(type, data, 'start'),
-    trigger: (data) => sdk.sendMessage('trigger', data, 'start'),
-    stop: () => sdk.sendMessage('stop', null, 'start'),
-    config: (data) => sdk.sendMessage('config', data, 'start'),
-  };
-
   sdk.on('start', (properties) => {
+    const { data, accounts, id, path, subaction } = (properties || {});
+
+    const messageCallbacks = {
+      message: (type, data) => sdk.sendMessage(type, data, 'start', id),
+      trigger: (data) => sdk.sendMessage('trigger', data, 'start', id),
+      stop: () => sdk.sendMessage('stop', null, 'start', id),
+      config: (data) => sdk.sendMessage('config', data, 'start', id),
+    };
+
     let results = null;
+
     try {
       results = hookFunction(properties, messageCallbacks);
       if (results instanceof Promise) {
